@@ -37,13 +37,27 @@ except ImportError:
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+# Load the local vLLM client settings. The launcher supplies DOTENV_PATH, while
+# the default makes `python harness/agent_loop.py` work directly as well.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_DOTENV_PATH = PROJECT_ROOT / "vllm" / ".env.vllm"
+dotenv_path = Path(os.environ.get("DOTENV_PATH", DEFAULT_DOTENV_PATH))
+
+if not dotenv_path.is_file():
+    raise RuntimeError(
+        f"Configuration file not found: {dotenv_path}. "
+        "Set DOTENV_PATH or create vllm/.env.vllm."
+    )
+
+load_dotenv(dotenv_path=dotenv_path, override=True)
 if os.getenv("ANTHROPIC_BASE_URL"):
     os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
 
 WORKDIR = Path.cwd()
 client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"))
-MODEL = os.environ["MODEL_ID"]
+MODEL = os.getenv("MODEL_ID")
+if not MODEL:
+    raise RuntimeError(f"MODEL_ID is missing from {dotenv_path}")
 
 ENVIRONMENT_PROMPT = (
     "Windows: the bash tool runs through cmd.exe; use cmd.exe syntax, not Unix "
